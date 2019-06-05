@@ -4,6 +4,8 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Components/InputComponent.h"
+#include "Runtime/Engine/Classes/Components/BoxComponent.h"
+#include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
 
 // Sets default values
 AKart::AKart()
@@ -12,7 +14,9 @@ AKart::AKart()
 	PrimaryActorTick.bCanEverTick = true;
 	
 	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
-	RootComponent = Mesh;
+	BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollision"));
+	RootComponent = BoxCollision;
+	Mesh->SetupAttachment(BoxCollision);
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 500.0f; // The camera follows at this distance behind the character	
@@ -36,9 +40,23 @@ void AKart::BeginPlay()
 void AKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	FVector Force = GetActorForwardVector() * Throttle * MaxDrivingForce;
+	FVector Acceleration = Force / Mass;
 
+	Velocity = Velocity + Acceleration * DeltaTime;
+
+	UpdateLocationFromVelocity(DeltaTime);
+}
+
+void AKart::UpdateLocationFromVelocity(float DeltaTime)
+{
 	FVector Translation = Velocity * 100 * DeltaTime;
-	AddActorWorldOffset(Velocity);
+	FHitResult HitResult;
+	AddActorWorldOffset(Velocity, true, &HitResult);
+	if (HitResult.IsValidBlockingHit())
+	{
+		Velocity = FVector(0, 0, 0);
+	}
 }
 
 // Called to bind functionality to input
@@ -50,6 +68,6 @@ void AKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 void AKart::MoveForward(float Value)
 {
-	Velocity = GetActorForwardVector() * (20 * Value);
+	Throttle = Value;
 }
 

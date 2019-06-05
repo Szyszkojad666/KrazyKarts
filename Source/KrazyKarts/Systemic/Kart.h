@@ -6,6 +6,8 @@
 #include "GameFramework/Pawn.h"
 #include "Kart.generated.h"
 
+class UBoxComponent;
+
 UCLASS()
 class KRAZYKARTS_API AKart : public APawn
 {
@@ -23,11 +25,15 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	USkeletalMeshComponent* Mesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UBoxComponent* BoxCollision;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
@@ -36,8 +42,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 	
+	UPROPERTY(EditAnywhere)
+	float Mass = 1000;
+
+	UPROPERTY(EditAnywhere)
+	float MaxDrivingForce = 10000;
+
 private:
 	void MoveForward(float Value);
 
 	FVector Velocity;
+	float Throttle;
+
+	void UpdateLocationFromVelocity(float DeltaTime);
+
 };
