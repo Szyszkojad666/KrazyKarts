@@ -41,11 +41,20 @@ void AKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	FVector Force = GetActorForwardVector() * Throttle * MaxDrivingForce;
+	Force += CalculateAirResistance();
 	FVector Acceleration = Force / Mass;
-
 	Velocity = Velocity + Acceleration * DeltaTime;
 
+	ApplyRotation(DeltaTime);
 	UpdateLocationFromVelocity(DeltaTime);
+}
+
+void AKart::ApplyRotation(float DeltaTime)
+{
+	float Rotation = MaxRotation * DeltaTime * SteeringThrow;
+	FQuat DeltaRotation(GetActorUpVector(), FMath::DegreesToRadians(Rotation));
+	AddActorWorldRotation(DeltaRotation);
+	Velocity = DeltaRotation.RotateVector(Velocity);
 }
 
 void AKart::UpdateLocationFromVelocity(float DeltaTime)
@@ -59,15 +68,29 @@ void AKart::UpdateLocationFromVelocity(float DeltaTime)
 	}
 }
 
+FVector AKart::CalculateAirResistance()
+{
+	float AirResistanceMagnitude = -pow(Velocity.Size(), 2) * DragCoefficient;
+	FVector AirResistanceVector = Velocity.GetSafeNormal() * AirResistanceMagnitude;
+	return AirResistanceVector;
+}
+
 // Called to bind functionality to input
 void AKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	PlayerInputComponent->BindAxis("MoveForward", this, &AKart::MoveForward);
+	PlayerInputComponent->BindAxis("MoveRight", this, &AKart::MoveRight);
 }
 
 void AKart::MoveForward(float Value)
 {
 	Throttle = Value;
 }
+
+void AKart::MoveRight(float Value)
+{
+	SteeringThrow = Value;
+}
+
 
