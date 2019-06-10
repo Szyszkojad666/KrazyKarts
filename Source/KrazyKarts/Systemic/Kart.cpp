@@ -6,6 +6,7 @@
 #include "Components/InputComponent.h"
 #include "Runtime/Engine/Classes/Components/BoxComponent.h"
 #include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 
 // Sets default values
 AKart::AKart()
@@ -42,8 +43,10 @@ void AKart::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	FVector Force = GetActorForwardVector() * Throttle * MaxDrivingForce;
 	Force += CalculateAirResistance();
+	Force += CalculateRollingResistance();
 	FVector Acceleration = Force / Mass;
 	Velocity = Velocity + Acceleration * DeltaTime;
+	
 
 	ApplyRotation(DeltaTime);
 	UpdateLocationFromVelocity(DeltaTime);
@@ -51,8 +54,9 @@ void AKart::Tick(float DeltaTime)
 
 void AKart::ApplyRotation(float DeltaTime)
 {
-	float Rotation = MaxRotation * DeltaTime * SteeringThrow;
-	FQuat DeltaRotation(GetActorUpVector(), FMath::DegreesToRadians(Rotation));
+	float DeltaLocation = FVector::DotProduct (GetActorForwardVector(), Velocity) * DeltaTime; // Dot Products gives you the proportion of how close one Vector is to another
+	float DTheta = (DeltaLocation / TurningCircleRadius) * SteeringThrow;
+	FQuat DeltaRotation(GetActorUpVector(), DTheta);
 	AddActorWorldRotation(DeltaRotation);
 	Velocity = DeltaRotation.RotateVector(Velocity);
 }
@@ -73,6 +77,14 @@ FVector AKart::CalculateAirResistance()
 	float AirResistanceMagnitude = -pow(Velocity.Size(), 2) * DragCoefficient;
 	FVector AirResistanceVector = Velocity.GetSafeNormal() * AirResistanceMagnitude;
 	return AirResistanceVector;
+}
+
+FVector AKart::CalculateRollingResistance()
+{
+	float AccelerationDueToGravity = -GetWorld()->GetGravityZ() / 100;
+	float NormalForce =  Mass * AccelerationDueToGravity;
+	FVector RollingResistance = -Velocity.GetSafeNormal() *NormalForce * RollingResistanceCoefficient;
+	return RollingResistance;
 }
 
 // Called to bind functionality to input

@@ -52,10 +52,16 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	float MaxRotation = 90;
+
+	UPROPERTY(EditAnywhere)
+	float TurningCircleRadius = 11;
 	
 	//How aerodynamic the car is
 	UPROPERTY(EditAnywhere)
 	float DragCoefficient = 16;
+
+	UPROPERTY(EditAnywhere)
+	float RollingResistanceCoefficient = 0.02;
 
 private:
 	void MoveForward(float Value);
@@ -68,4 +74,5 @@ private:
 
 	void UpdateLocationFromVelocity(float DeltaTime);
 	FVector CalculateAirResistance();
+	FVector CalculateRollingResistance();
 };
