@@ -61,6 +61,8 @@ void AKart::ApplyRotation(float DeltaTime)
 	Velocity = DeltaRotation.RotateVector(Velocity);
 }
 
+
+
 void AKart::UpdateLocationFromVelocity(float DeltaTime)
 {
 	FVector Translation = Velocity * 100 * DeltaTime;
@@ -98,11 +100,36 @@ void AKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 void AKart::MoveForward(float Value)
 {
 	Throttle = Value;
+	if (Role != ROLE_Authority)
+	Server_MoveForward(Throttle);
+}
+void AKart::Server_MoveForward_Implementation(float Value)
+{
+	Throttle = Value;
+}
+
+bool AKart::Server_MoveForward_Validate(float Value)
+{
+	return FMath::Abs(Value) <= 1.0;
 }
 
 void AKart::MoveRight(float Value)
 {
 	SteeringThrow = Value;
+	if (Role != ROLE_Authority)
+	Server_MoveRight(SteeringThrow);
 }
+void AKart::Server_MoveRight_Implementation(float Value)
+{
+	SteeringThrow = Value;
+}
+
+bool AKart::Server_MoveRight_Validate(float Value)
+{
+	return FMath::Abs(Value) <= 1.0;
+}
+
+
+
 
 
