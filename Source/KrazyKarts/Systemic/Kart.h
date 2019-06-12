@@ -63,6 +63,24 @@ public:
 	UPROPERTY(EditAnywhere)
 	float RollingResistanceCoefficient = 0.02;
 
+	UPROPERTY(ReplicatedUsing = OnRep_ActorTransform)
+	FTransform ActorTransform;
+
+	UPROPERTY(Replicated)
+	FVector Velocity;
+	
+	UPROPERTY(Replicated)
+	float SteeringThrow;
+	
+	UPROPERTY(Replicated)
+	float Throttle;
+
+	UFUNCTION()
+	void OnRep_ActorTransform();
+
+	UFUNCTION()
+	void OnRep_Velocity();
+
 private:
 
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -75,10 +93,7 @@ private:
 
 	void MoveRight(float Value);
 
-	FVector Velocity;
 	
-	float SteeringThrow;
-	float Throttle;
 
 	void UpdateLocationFromVelocity(float DeltaTime);
 	FVector CalculateAirResistance();

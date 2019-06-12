@@ -7,6 +7,7 @@
 #include "Runtime/Engine/Classes/Components/BoxComponent.h"
 #include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "UnrealNetwork.h"
 
 // Sets default values
 AKart::AKart()
@@ -28,13 +29,17 @@ AKart::AKart()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = true; // Camera does not rotate relative to arm
 
+	bReplicates = true;
 }
 
 // Called when the game starts or when spawned
 void AKart::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	if (Role == ROLE_Authority)
+	{
+		NetUpdateFrequency = 1;
+	}
 }
 
 // Called every frame
@@ -47,9 +52,30 @@ void AKart::Tick(float DeltaTime)
 	FVector Acceleration = Force / Mass;
 	Velocity = Velocity + Acceleration * DeltaTime;
 	
-
 	ApplyRotation(DeltaTime);
 	UpdateLocationFromVelocity(DeltaTime);
+	if (Role == ROLE_Authority)
+	{
+		ActorTransform = GetActorTransform();
+	}
+}
+
+void AKart::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AKart, ActorTransform);
+	DOREPLIFETIME(AKart, Velocity);
+	DOREPLIFETIME(AKart, SteeringThrow);
+	DOREPLIFETIME(AKart, Throttle);
+}
+
+void AKart::OnRep_ActorTransform()
+{
+	SetActorTransform(ActorTransform);
+}
+
+void AKart::OnRep_Velocity()
+{
 }
 
 void AKart::ApplyRotation(float DeltaTime)
@@ -60,8 +86,6 @@ void AKart::ApplyRotation(float DeltaTime)
 	AddActorWorldRotation(DeltaRotation);
 	Velocity = DeltaRotation.RotateVector(Velocity);
 }
-
-
 
 void AKart::UpdateLocationFromVelocity(float DeltaTime)
 {
