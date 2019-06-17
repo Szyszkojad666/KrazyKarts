@@ -8,6 +8,37 @@
 
 class UBoxComponent;
 
+USTRUCT()
+struct FKartMove
+{
+	GENERATED_USTRUCT_BODY()
+		
+	UPROPERTY()
+	float SteeringThrow;
+
+	UPROPERTY()
+	float Throttle;
+
+	UPROPERTY()
+	float DeltaTime;
+	
+	UPROPERTY()
+	float Time;
+};
+
+USTRUCT()
+struct FKartState
+{
+	GENERATED_USTRUCT_BODY()
+
+	FKartMove LastMove;
+
+	UPROPERTY()
+	float Velocity;
+
+	UPROPERTY()
+	FTransform Transform;
+};
 UCLASS()
 class KRAZYKARTS_API AKart : public APawn
 {
@@ -77,9 +108,6 @@ public:
 
 	UFUNCTION()
 	void OnRep_ActorTransform();
-
-	UFUNCTION()
-	void OnRep_Velocity();
 
 private:
 

@@ -74,10 +74,6 @@ void AKart::OnRep_ActorTransform()
 	SetActorTransform(ActorTransform);
 }
 
-void AKart::OnRep_Velocity()
-{
-}
-
 void AKart::ApplyRotation(float DeltaTime)
 {
 	float DeltaLocation = FVector::DotProduct (GetActorForwardVector(), Velocity) * DeltaTime; // Dot Products gives you the proportion of how close one Vector is to another
