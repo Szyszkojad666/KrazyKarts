@@ -23,7 +23,7 @@ struct FKartMove
 	float DeltaTime;
 	
 	UPROPERTY()
-	float Time;
+	float TimeStamp;
 };
 
 USTRUCT()
@@ -34,7 +34,7 @@ struct FKartState
 	FKartMove LastMove;
 
 	UPROPERTY()
-	float Velocity;
+	FVector Velocity;
 
 	UPROPERTY()
 	FTransform Transform;
@@ -44,23 +44,10 @@ class KRAZYKARTS_API AKart : public APawn
 {
 	GENERATED_BODY()
 
-public:
-	// Sets default values for this pawn's properties
-	AKart();
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-	void ApplyRotation(float DeltaTime);
-
-	
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	AKart();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	USkeletalMeshComponent* Mesh;
@@ -94,36 +81,45 @@ public:
 	UPROPERTY(EditAnywhere)
 	float RollingResistanceCoefficient = 0.02;
 
-	UPROPERTY(ReplicatedUsing = OnRep_ActorTransform)
-	FTransform ActorTransform;
-
-	UPROPERTY(Replicated)
+private:
+	
 	FVector Velocity;
-	
-	UPROPERTY(Replicated)
+
 	float SteeringThrow;
-	
-	UPROPERTY(Replicated)
+
 	float Throttle;
 
+	TArray<FKartMove> UnacknowledgedMoves;
+
+	void UpdateLocationFromVelocity(float DeltaTime);
+	void ApplyRotation(float DeltaTime, float SteeringThrow);
+	
+	FVector CalculateAirResistance();
+	FVector CalculateRollingResistance();
+	
+	// Called to bind functionality to input
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
+	FKartState ServerState;
+
 	UFUNCTION()
-	void OnRep_ActorTransform();
-
-private:
+	void OnRep_ServerState();
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_MoveForward(float Value);
+	void Server_SendMove(FKartMove InMove);
 
-	void MoveForward(float Value);
-
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_MoveRight(float Value);
+	FKartMove CreateMove(float DeltaTime);
 
 	void MoveRight(float Value);
 
-	
+	void MoveForward(float Value);
 
-	void UpdateLocationFromVelocity(float DeltaTime);
-	FVector CalculateAirResistance();
-	FVector CalculateRollingResistance();
+	void SimulateMove(FKartMove Move);
+
+	void ClearAcknowledgedMoves(FKartMove LastMove);
+	
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
 };
