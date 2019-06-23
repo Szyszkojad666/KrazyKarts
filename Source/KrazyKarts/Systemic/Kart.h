@@ -31,6 +31,7 @@ struct FKartState
 {
 	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY()
 	FKartMove LastMove;
 
 	UPROPERTY()

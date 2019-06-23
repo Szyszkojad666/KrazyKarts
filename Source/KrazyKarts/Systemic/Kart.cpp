@@ -7,6 +7,7 @@
 #include "Runtime/Engine/Classes/Components/BoxComponent.h"
 #include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "Runtime/Engine/Classes/GameFramework/GameState.h"
 #include "UnrealNetwork.h"
 
 // Sets default values
@@ -135,7 +136,6 @@ void AKart::SimulateMove(FKartMove Move)
 void AKart::ClearAcknowledgedMoves(FKartMove LastMove)
 {
 	TArray<FKartMove> NewMoves;
-
 	for (const FKartMove& Move : UnacknowledgedMoves)
 	{
 		if (Move.TimeStamp > LastMove.TimeStamp)
@@ -152,14 +152,14 @@ FKartMove AKart::CreateMove(float DeltaTime)
 	Move.DeltaTime = DeltaTime;
 	Move.SteeringThrow = SteeringThrow;
 	Move.Throttle = Throttle;
-	Move.TimeStamp = GetWorld()->GetTimeSeconds();
+	Move.TimeStamp = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
 	return Move;
 }
 
 void AKart::Server_SendMove_Implementation(FKartMove InMove)
 {
 	SimulateMove(InMove);
-	ServerState.LastMove = InMove;
+	ServerState.LastMove = InMove; 
 	ServerState.Transform = GetActorTransform();
 	ServerState.Velocity = Velocity;
 }
