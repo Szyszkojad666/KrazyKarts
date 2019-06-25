@@ -13,9 +13,9 @@
 // Sets default values
 AKart::AKart()
 {
- 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	
+
 	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
 	BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollision"));
 	RootComponent = BoxCollision;
@@ -47,16 +47,21 @@ void AKart::BeginPlay()
 void AKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (IsLocallyControlled())
+	if (Role == ROLE_AutonomousProxy)
 	{
 		FKartMove MoveToSimulate = CreateMove(DeltaTime);
-		UE_LOG(LogTemp, Warning, TEXT("Queue length is: %i"), UnacknowledgedMoves.Num());
+		SimulateMove(MoveToSimulate);
+		UnacknowledgedMoves.Add(MoveToSimulate);
 		Server_SendMove(MoveToSimulate);
-		if (Role != ROLE_Authority)
-		{
-			SimulateMove(MoveToSimulate);
-			UnacknowledgedMoves.Add(MoveToSimulate);
-		}
+	}
+	if (Role == ROLE_Authority && GetRemoteRole() == ROLE_SimulatedProxy)
+	{
+		FKartMove MoveToSimulate = CreateMove(DeltaTime);
+		Server_SendMove(MoveToSimulate);
+	}
+	if (Role == ROLE_SimulatedProxy)
+	{
+		SimulateMove(ServerState.LastMove);
 	}
 }
 
@@ -71,11 +76,15 @@ void AKart::OnRep_ServerState()
 	SetActorTransform(ServerState.Transform);
 	Velocity = ServerState.Velocity;
 	ClearAcknowledgedMoves(ServerState.LastMove);
+	for (const FKartMove& Move : UnacknowledgedMoves)
+	{
+		SimulateMove(Move);
+	}
 }
 
 void AKart::ApplyRotation(float DeltaTime, float SteeringThrow)
 {
-	float DeltaLocation = FVector::DotProduct (GetActorForwardVector(), Velocity) * DeltaTime; // Dot Products gives you the proportion of how close one Vector is to another
+	float DeltaLocation = FVector::DotProduct(GetActorForwardVector(), Velocity) * DeltaTime; // Dot Products gives you the proportion of how close one Vector is to another
 	float DTheta = (DeltaLocation / TurningCircleRadius) * SteeringThrow;
 	FQuat DeltaRotation(GetActorUpVector(), DTheta);
 	AddActorWorldRotation(DeltaRotation);
@@ -103,7 +112,7 @@ FVector AKart::CalculateAirResistance()
 FVector AKart::CalculateRollingResistance()
 {
 	float AccelerationDueToGravity = -GetWorld()->GetGravityZ() / 100;
-	float NormalForce =  Mass * AccelerationDueToGravity;
+	float NormalForce = Mass * AccelerationDueToGravity;
 	FVector RollingResistance = -Velocity.GetSafeNormal() *NormalForce * RollingResistanceCoefficient;
 	return RollingResistance;
 }
@@ -116,12 +125,8 @@ void AKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("MoveRight", this, &AKart::MoveRight);
 }
 
-void AKart::MoveForward(float Value)
-{
-	Throttle = Value;
-}
 
-void AKart::SimulateMove(FKartMove Move)
+void AKart::SimulateMove(const FKartMove& Move)
 {
 	FVector Force = GetActorForwardVector() * Move.Throttle * MaxDrivingForce;
 	Force += CalculateAirResistance();
@@ -159,14 +164,13 @@ FKartMove AKart::CreateMove(float DeltaTime)
 void AKart::Server_SendMove_Implementation(FKartMove InMove)
 {
 	SimulateMove(InMove);
-	ServerState.LastMove = InMove; 
+	ServerState.LastMove = InMove;
 	ServerState.Transform = GetActorTransform();
 	ServerState.Velocity = Velocity;
 }
 
 bool  AKart::Server_SendMove_Validate(FKartMove InMove)
 {
-	
 	return true;
 }
 
@@ -175,6 +179,11 @@ void AKart::MoveRight(float Value)
 	SteeringThrow = Value;
 }
 
+void AKart::MoveForward(float Value)
+{
+	Throttle = Value;
+	UE_LOG(LogTemp, Warning, TEXT("Throttle is: %f"), Throttle);
+}
 
 
 

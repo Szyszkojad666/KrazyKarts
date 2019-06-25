@@ -10,7 +10,7 @@
  * 
  */
 UCLASS()
-class KRAZYKARTS_API AKrazyKartsGameMode : public AGameMode
+class KRAZYKARTS_API AKrazyKartsGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 	

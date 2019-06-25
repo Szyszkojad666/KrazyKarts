@@ -116,7 +116,7 @@ private:
 
 	void MoveForward(float Value);
 
-	void SimulateMove(FKartMove Move);
+	void SimulateMove(const FKartMove& Move);
 
 	void ClearAcknowledgedMoves(FKartMove LastMove);
 	
