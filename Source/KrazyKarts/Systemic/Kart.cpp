@@ -6,9 +6,8 @@
 #include "Components/InputComponent.h"
 #include "Runtime/Engine/Classes/Components/BoxComponent.h"
 #include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
-#include "Engine/World.h"
-#include "Runtime/Engine/Classes/GameFramework/GameState.h"
-#include "UnrealNetwork.h"
+#include "KrazyKarts/Components/KartMovementComponent.h"
+#include "KrazyKarts/Components/KartReplicationComponent.h"
 
 // Sets default values
 AKart::AKart()
@@ -25,6 +24,8 @@ AKart::AKart()
 	CameraBoom->TargetArmLength = 500.0f; // The camera follows at this distance behind the character	
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
+	KartMovementComponent = CreateDefaultSubobject<UKartMovementComponent>(TEXT("KartMovementComponent"));
+	KartReplicationComponent = CreateDefaultSubobject<UKartReplicationComponent>(TEXT("KartReplicationComponent"));
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
@@ -43,80 +44,6 @@ void AKart::BeginPlay()
 	}
 }
 
-// Called every frame
-void AKart::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	if (Role == ROLE_AutonomousProxy)
-	{
-		FKartMove MoveToSimulate = CreateMove(DeltaTime);
-		SimulateMove(MoveToSimulate);
-		UnacknowledgedMoves.Add(MoveToSimulate);
-		Server_SendMove(MoveToSimulate);
-	}
-	if (Role == ROLE_Authority && GetRemoteRole() == ROLE_SimulatedProxy)
-	{
-		FKartMove MoveToSimulate = CreateMove(DeltaTime);
-		Server_SendMove(MoveToSimulate);
-	}
-	if (Role == ROLE_SimulatedProxy)
-	{
-		SimulateMove(ServerState.LastMove);
-	}
-}
-
-void AKart::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(AKart, ServerState);
-}
-
-void AKart::OnRep_ServerState()
-{
-	SetActorTransform(ServerState.Transform);
-	Velocity = ServerState.Velocity;
-	ClearAcknowledgedMoves(ServerState.LastMove);
-	for (const FKartMove& Move : UnacknowledgedMoves)
-	{
-		SimulateMove(Move);
-	}
-}
-
-void AKart::ApplyRotation(float DeltaTime, float SteeringThrow)
-{
-	float DeltaLocation = FVector::DotProduct(GetActorForwardVector(), Velocity) * DeltaTime; // Dot Products gives you the proportion of how close one Vector is to another
-	float DTheta = (DeltaLocation / TurningCircleRadius) * SteeringThrow;
-	FQuat DeltaRotation(GetActorUpVector(), DTheta);
-	AddActorWorldRotation(DeltaRotation);
-	Velocity = DeltaRotation.RotateVector(Velocity);
-}
-
-void AKart::UpdateLocationFromVelocity(float DeltaTime)
-{
-	FVector Translation = Velocity * 100 * DeltaTime;
-	FHitResult HitResult;
-	AddActorWorldOffset(Velocity, true, &HitResult);
-	if (HitResult.IsValidBlockingHit())
-	{
-		Velocity = FVector(0, 0, 0);
-	}
-}
-
-FVector AKart::CalculateAirResistance()
-{
-	float AirResistanceMagnitude = -pow(Velocity.Size(), 2) * DragCoefficient;
-	FVector AirResistanceVector = Velocity.GetSafeNormal() * AirResistanceMagnitude;
-	return AirResistanceVector;
-}
-
-FVector AKart::CalculateRollingResistance()
-{
-	float AccelerationDueToGravity = -GetWorld()->GetGravityZ() / 100;
-	float NormalForce = Mass * AccelerationDueToGravity;
-	FVector RollingResistance = -Velocity.GetSafeNormal() *NormalForce * RollingResistanceCoefficient;
-	return RollingResistance;
-}
-
 // Called to bind functionality to input
 void AKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -125,64 +52,14 @@ void AKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("MoveRight", this, &AKart::MoveRight);
 }
 
-
-void AKart::SimulateMove(const FKartMove& Move)
-{
-	FVector Force = GetActorForwardVector() * Move.Throttle * MaxDrivingForce;
-	Force += CalculateAirResistance();
-	Force += CalculateRollingResistance();
-	FVector Acceleration = Force / Mass;
-	Velocity = Velocity + Acceleration * Move.DeltaTime;
-
-	ApplyRotation(Move.DeltaTime, Move.SteeringThrow);
-	UpdateLocationFromVelocity(Move.DeltaTime);
-}
-
-void AKart::ClearAcknowledgedMoves(FKartMove LastMove)
-{
-	TArray<FKartMove> NewMoves;
-	for (const FKartMove& Move : UnacknowledgedMoves)
-	{
-		if (Move.TimeStamp > LastMove.TimeStamp)
-		{
-			NewMoves.Add(Move);
-		}
-	}
-	UnacknowledgedMoves = NewMoves;
-}
-
-FKartMove AKart::CreateMove(float DeltaTime)
-{
-	FKartMove Move;
-	Move.DeltaTime = DeltaTime;
-	Move.SteeringThrow = SteeringThrow;
-	Move.Throttle = Throttle;
-	Move.TimeStamp = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
-	return Move;
-}
-
-void AKart::Server_SendMove_Implementation(FKartMove InMove)
-{
-	SimulateMove(InMove);
-	ServerState.LastMove = InMove;
-	ServerState.Transform = GetActorTransform();
-	ServerState.Velocity = Velocity;
-}
-
-bool  AKart::Server_SendMove_Validate(FKartMove InMove)
-{
-	return true;
-}
-
 void AKart::MoveRight(float Value)
 {
-	SteeringThrow = Value;
+	KartMovementComponent->MoveRight(Value);
 }
 
 void AKart::MoveForward(float Value)
 {
-	Throttle = Value;
-	UE_LOG(LogTemp, Warning, TEXT("Throttle is: %f"), Throttle);
+	KartMovementComponent->MoveForward(Value);
 }
 
 

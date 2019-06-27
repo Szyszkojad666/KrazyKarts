@@ -8,38 +8,7 @@
 
 class UBoxComponent;
 
-USTRUCT()
-struct FKartMove
-{
-	GENERATED_USTRUCT_BODY()
-		
-	UPROPERTY()
-	float SteeringThrow;
 
-	UPROPERTY()
-	float Throttle;
-
-	UPROPERTY()
-	float DeltaTime;
-	
-	UPROPERTY()
-	float TimeStamp;
-};
-
-USTRUCT()
-struct FKartState
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	FKartMove LastMove;
-
-	UPROPERTY()
-	FVector Velocity;
-
-	UPROPERTY()
-	FTransform Transform;
-};
 UCLASS()
 class KRAZYKARTS_API AKart : public APawn
 {
@@ -47,7 +16,7 @@ class KRAZYKARTS_API AKart : public APawn
 
 public:	
 	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	//virtual void Tick(float DeltaTime) override;
 	AKart();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -62,63 +31,21 @@ public:
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UKartMovementComponent* KartMovementComponent;
 	
-	UPROPERTY(EditAnywhere)
-	float Mass = 1000;
-
-	UPROPERTY(EditAnywhere)
-	float MaxDrivingForce = 10000;
-
-	UPROPERTY(EditAnywhere)
-	float MaxRotation = 90;
-
-	UPROPERTY(EditAnywhere)
-	float TurningCircleRadius = 11;
-	
-	//How aerodynamic the car is
-	UPROPERTY(EditAnywhere)
-	float DragCoefficient = 16;
-
-	UPROPERTY(EditAnywhere)
-	float RollingResistanceCoefficient = 0.02;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UKartReplicationComponent* KartReplicationComponent;
 
 private:
-	
-	FVector Velocity;
-
-	float SteeringThrow;
-
-	float Throttle;
-
-	TArray<FKartMove> UnacknowledgedMoves;
-
-	void UpdateLocationFromVelocity(float DeltaTime);
-	void ApplyRotation(float DeltaTime, float SteeringThrow);
-	
-	FVector CalculateAirResistance();
-	FVector CalculateRollingResistance();
 	
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
-	FKartState ServerState;
-
-	UFUNCTION()
-	void OnRep_ServerState();
-
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_SendMove(FKartMove InMove);
-
-	FKartMove CreateMove(float DeltaTime);
-
 	void MoveRight(float Value);
 
 	void MoveForward(float Value);
-
-	void SimulateMove(const FKartMove& Move);
-
-	void ClearAcknowledgedMoves(FKartMove LastMove);
 	
 protected:
 	// Called when the game starts or when spawned
