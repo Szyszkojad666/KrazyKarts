@@ -29,8 +29,10 @@ void UKartMovementComponent::BeginPlay()
 void UKartMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	
-	// ...
+
+		FKartMove MoveToSimulate = CreateMove(DeltaTime);
+		SimulateMove(MoveToSimulate);
+		LastMove = MoveToSimulate;
 }
 
 void UKartMovementComponent::MoveRight(float Value)

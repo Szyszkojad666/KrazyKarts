@@ -39,12 +39,15 @@ public:
 	void MoveRight(float Value);
 	void MoveForward(float Value);
 
-	FKartMove CreateMove(float DeltaTime);
 	void SimulateMove(const FKartMove& Move);
 	
 	void SetVelocity(FVector InVelocity) { Velocity = InVelocity; }
+	
 	UFUNCTION(BlueprintCallable)
 	const FVector GetVelocity() { return Velocity; }
+
+	FORCEINLINE
+	FKartMove GetLastMove() { return LastMove; }
 
 protected:
 	// Called when the game starts
@@ -70,6 +73,10 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	float RollingResistanceCoefficient = 0.02;
+
+	FKartMove CreateMove(float DeltaTime);
+
+	FKartMove LastMove;
 
 	FVector Velocity;
 

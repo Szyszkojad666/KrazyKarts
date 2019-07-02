@@ -3,6 +3,7 @@
 #include "KartReplicationComponent.h"
 #include "Runtime/Engine/Classes/GameFramework/Actor.h"
 #include "UnrealNetwork.h"
+#include "KrazyKarts.h"
 
 
 // Sets default values for this component's properties
@@ -32,19 +33,18 @@ void UKartReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (KartMovementComponent)
 	{
+		ENetRole Role = GetOwnerRole();
+		FKartMove MoveToSimulate = KartMovementComponent->GetLastMove();
 		if (GetOwner()->Role == ROLE_AutonomousProxy)
 		{
-			FKartMove MoveToSimulate = KartMovementComponent->CreateMove(DeltaTime);
-			KartMovementComponent->SimulateMove(MoveToSimulate);
 			UnacknowledgedMoves.Add(MoveToSimulate);
 			Server_SendMove(MoveToSimulate);
 		}
-		if (GetOwner()->Role == ROLE_Authority && GetOwner()->GetRemoteRole() == ROLE_SimulatedProxy)
+		if (GetOwner()->GetRemoteRole() == ROLE_SimulatedProxy)
 		{
-			FKartMove MoveToSimulate = KartMovementComponent->CreateMove(DeltaTime);
-			Server_SendMove(MoveToSimulate);
+			UpdateServerState(MoveToSimulate);
 		}
-		if (GetOwner()->Role == ROLE_SimulatedProxy)
+		if (GetOwnerRole() == ROLE_SimulatedProxy)
 		{
 			KartMovementComponent->SimulateMove(ServerState.LastMove);
 		}
@@ -76,9 +76,7 @@ void UKartReplicationComponent::Server_SendMove_Implementation(FKartMove InMove)
 	if (KartMovementComponent)
 	{
 		KartMovementComponent->SimulateMove(InMove);
-		ServerState.LastMove = InMove;
-		ServerState.Transform = GetOwner()->GetActorTransform();
-		ServerState.Velocity = KartMovementComponent->GetVelocity();
+		UpdateServerState(InMove);
 	}
 }
 	
@@ -99,4 +97,12 @@ void UKartReplicationComponent::ClearAcknowledgedMoves(FKartMove LastMove)
 		}
 	}
 	UnacknowledgedMoves = NewMoves;
+}
+
+void UKartReplicationComponent::UpdateServerState(const FKartMove& InMove)
+{
+	if (!KartMovementComponent) return;
+	ServerState.LastMove = InMove;
+	ServerState.Transform = GetOwner()->GetActorTransform();
+	ServerState.Velocity = KartMovementComponent->GetVelocity();
 }

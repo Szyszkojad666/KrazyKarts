@@ -39,6 +39,7 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+
 private:
 	class UKartMovementComponent* KartMovementComponent;
 	TArray<FKartMove> UnacknowledgedMoves;
@@ -53,4 +54,6 @@ private:
 	void Server_SendMove(FKartMove InMove);
 
 	void ClearAcknowledgedMoves(FKartMove LastMove);
+
+	void UpdateServerState(const FKartMove& InMove);
 };
