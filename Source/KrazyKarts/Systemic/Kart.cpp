@@ -1,3 +1,4 @@
+
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Kart.h"
@@ -32,6 +33,7 @@ AKart::AKart()
 	FollowCamera->bUsePawnControlRotation = true; // Camera does not rotate relative to arm
 
 	bReplicates = true;
+	bReplicateMovement = false;
 }
 
 // Called when the game starts or when spawned

@@ -46,7 +46,7 @@ void UKartReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 		}
 		if (GetOwnerRole() == ROLE_SimulatedProxy)
 		{
-			KartMovementComponent->SimulateMove(ServerState.LastMove);
+			ClientTick(DeltaTime);
 		}
 	}
 }
@@ -58,6 +58,28 @@ void UKartReplicationComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProp
 }
 
 void UKartReplicationComponent::OnRep_ServerState()
+{
+	switch (GetOwnerRole())
+	{
+	case ROLE_AutonomousProxy:
+		AutonomousProxy_OnRep_ServerState();
+		break;
+	case ROLE_SimulatedProxy:
+		SimuluatedProxy_OnRep_ServerState();
+		break;
+	default:
+		break;
+	}
+}
+
+void UKartReplicationComponent::SimuluatedProxy_OnRep_ServerState()
+{
+	TimeBetweenUpdates = TimeSinceUpdate;
+	TimeSinceUpdate = 0;
+	StartingLocation = GetOwner()->GetActorLocation();
+}
+
+void UKartReplicationComponent::AutonomousProxy_OnRep_ServerState()
 {
 	if (KartMovementComponent)
 	{
@@ -79,7 +101,6 @@ void UKartReplicationComponent::Server_SendMove_Implementation(FKartMove InMove)
 		UpdateServerState(InMove);
 	}
 }
-	
 
 bool  UKartReplicationComponent::Server_SendMove_Validate(FKartMove InMove)
 {
@@ -105,4 +126,18 @@ void UKartReplicationComponent::UpdateServerState(const FKartMove& InMove)
 	ServerState.LastMove = InMove;
 	ServerState.Transform = GetOwner()->GetActorTransform();
 	ServerState.Velocity = KartMovementComponent->GetVelocity();
+}
+
+void UKartReplicationComponent::ClientTick(float DeltaTime)
+{
+	TimeSinceUpdate += DeltaTime;
+	if (TimeBetweenUpdates < KINDA_SMALL_NUMBER) // comparing floats to 0 is bad
+	{
+		return;
+	}
+	TargetLocation = ServerState.Transform.GetLocation();
+	float LerpRatio = TimeSinceUpdate / TimeBetweenUpdates;
+	LerpRatio = FMath::Clamp(LerpRatio, 0.0f, 1.0f);
+	FVector NewLocation = FMath::LerpStable(StartingLocation, TargetLocation, LerpRatio);
+	GetOwner()->SetActorLocation(NewLocation);
 }

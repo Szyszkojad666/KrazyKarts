@@ -11,17 +11,17 @@ struct FKartMove
 {
 	GENERATED_USTRUCT_BODY()
 
-		UPROPERTY()
-		float SteeringThrow;
+	UPROPERTY()
+	float SteeringThrow;
 
 	UPROPERTY()
-		float Throttle;
+	float Throttle;
 
 	UPROPERTY()
-		float DeltaTime;
+	float DeltaTime;
 
 	UPROPERTY()
-		float TimeStamp;
+	float TimeStamp;
 };
 
 

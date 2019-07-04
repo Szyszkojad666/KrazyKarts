@@ -10,7 +10,7 @@
 USTRUCT()
 struct FKartState
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	FKartMove LastMove;
@@ -49,6 +49,9 @@ private:
 
 	UFUNCTION()
 	void OnRep_ServerState();
+	
+	void SimuluatedProxy_OnRep_ServerState();
+	void AutonomousProxy_OnRep_ServerState();
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SendMove(FKartMove InMove);
@@ -56,4 +59,11 @@ private:
 	void ClearAcknowledgedMoves(FKartMove LastMove);
 
 	void UpdateServerState(const FKartMove& InMove);
+
+	void ClientTick(float DeltaTime);
+
+	FVector StartingLocation;
+	FVector TargetLocation;
+	float TimeSinceUpdate;
+	float TimeBetweenUpdates;
 };
