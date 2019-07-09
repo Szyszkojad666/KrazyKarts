@@ -4,6 +4,7 @@
 #include "Runtime/Engine/Classes/GameFramework/Actor.h"
 #include "UnrealNetwork.h"
 #include "KrazyKarts.h"
+#include "Engine/GameEngine.h"
 
 
 // Sets default values for this component's properties
@@ -12,6 +13,7 @@ UKartReplicationComponent::UKartReplicationComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
+	bReplicates = true;
 
 	// ...
 }
@@ -59,6 +61,7 @@ void UKartReplicationComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProp
 
 void UKartReplicationComponent::OnRep_ServerState()
 {
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Im running on rep"));
 	switch (GetOwnerRole())
 	{
 	case ROLE_AutonomousProxy:
@@ -99,6 +102,13 @@ void UKartReplicationComponent::Server_SendMove_Implementation(FKartMove InMove)
 	{
 		KartMovementComponent->SimulateMove(InMove);
 		UpdateServerState(InMove);
+		/*
+		UE_LOG(LogTemp, Warning, TEXT("Owner role is %s: "), *GETENUMSTRING("ENetRole", GetOwnerRole()));
+		UE_LOG(LogTemp, Warning, TEXT("Owner role is %s: "), *GETENUMSTRING("ENetRole", GetOwner()->GetRemoteRole()));
+		UE_LOG(LogTemp, Warning, TEXT("MyName is: %s"), *GetOwner()->GetName())
+		*/
+
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Im running"));
 	}
 }
 
@@ -122,10 +132,12 @@ void UKartReplicationComponent::ClearAcknowledgedMoves(FKartMove LastMove)
 
 void UKartReplicationComponent::UpdateServerState(const FKartMove& InMove)
 {
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Im running on update server state"));
 	if (!KartMovementComponent) return;
 	ServerState.LastMove = InMove;
 	ServerState.Transform = GetOwner()->GetActorTransform();
 	ServerState.Velocity = KartMovementComponent->GetVelocity();
+	//UE_LOG(LogTemp, Warning, TEXT("Owner role is %s: "), *GETENUMSTRING("ENetRole", GetOwnerRole()));
 }
 
 void UKartReplicationComponent::ClientTick(float DeltaTime)
