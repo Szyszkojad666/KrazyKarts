@@ -62,8 +62,11 @@ private:
 
 	void ClientTick(float DeltaTime);
 
-	FVector StartingLocation;
+	FTransform StartingTransform;
 	FVector TargetLocation;
+	FVector StartingVelocity;
+	FVector NewVelocity;
+	FQuat TargetRotation;
 	float TimeSinceUpdate;
 	float TimeBetweenUpdates;
 };

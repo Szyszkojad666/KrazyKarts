@@ -61,7 +61,6 @@ void UKartReplicationComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProp
 
 void UKartReplicationComponent::OnRep_ServerState()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Im running on rep"));
 	switch (GetOwnerRole())
 	{
 	case ROLE_AutonomousProxy:
@@ -79,7 +78,11 @@ void UKartReplicationComponent::SimuluatedProxy_OnRep_ServerState()
 {
 	TimeBetweenUpdates = TimeSinceUpdate;
 	TimeSinceUpdate = 0;
-	StartingLocation = GetOwner()->GetActorLocation();
+	StartingTransform = GetOwner()->GetActorTransform();
+	if (KartMovementComponent)
+	{
+		StartingVelocity = KartMovementComponent->GetVelocity();
+	}
 }
 
 void UKartReplicationComponent::AutonomousProxy_OnRep_ServerState()
@@ -102,13 +105,6 @@ void UKartReplicationComponent::Server_SendMove_Implementation(FKartMove InMove)
 	{
 		KartMovementComponent->SimulateMove(InMove);
 		UpdateServerState(InMove);
-		/*
-		UE_LOG(LogTemp, Warning, TEXT("Owner role is %s: "), *GETENUMSTRING("ENetRole", GetOwnerRole()));
-		UE_LOG(LogTemp, Warning, TEXT("Owner role is %s: "), *GETENUMSTRING("ENetRole", GetOwner()->GetRemoteRole()));
-		UE_LOG(LogTemp, Warning, TEXT("MyName is: %s"), *GetOwner()->GetName())
-		*/
-
-		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Im running"));
 	}
 }
 
@@ -132,7 +128,6 @@ void UKartReplicationComponent::ClearAcknowledgedMoves(FKartMove LastMove)
 
 void UKartReplicationComponent::UpdateServerState(const FKartMove& InMove)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Im running on update server state"));
 	if (!KartMovementComponent) return;
 	ServerState.LastMove = InMove;
 	ServerState.Transform = GetOwner()->GetActorTransform();
@@ -143,13 +138,24 @@ void UKartReplicationComponent::UpdateServerState(const FKartMove& InMove)
 void UKartReplicationComponent::ClientTick(float DeltaTime)
 {
 	TimeSinceUpdate += DeltaTime;
-	if (TimeBetweenUpdates < KINDA_SMALL_NUMBER) // comparing floats to 0 is bad
+	if (TimeBetweenUpdates < KINDA_SMALL_NUMBER || !KartMovementComponent ) // comparing floats to 0 is bad
 	{
 		return;
 	}
 	TargetLocation = ServerState.Transform.GetLocation();
+	TargetRotation = ServerState.Transform.GetRotation();
+	float VelocityToDerivative = TimeBetweenUpdates * 100.0f;
+	FVector StartDerivative = StartingVelocity * VelocityToDerivative;
+	FVector TargetDerivative = ServerState.Velocity * VelocityToDerivative;
 	float LerpRatio = TimeSinceUpdate / TimeBetweenUpdates;
 	LerpRatio = FMath::Clamp(LerpRatio, 0.0f, 1.0f);
-	FVector NewLocation = FMath::LerpStable(StartingLocation, TargetLocation, LerpRatio);
+	FVector NewLocation = FMath::CubicInterp(StartingTransform.GetLocation(), StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
+	
+	FVector NewDerivative = FMath::CubicInterpDerivative(StartingTransform.GetLocation(), StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
+	FVector NewVelocity = NewDerivative / VelocityToDerivative;
+	KartMovementComponent->SetVelocity(NewVelocity);
+
+	FQuat NewRotation = FQuat::Slerp(StartingTransform.GetRotation(), TargetRotation, LerpRatio);
 	GetOwner()->SetActorLocation(NewLocation);
+	GetOwner()->SetActorRotation(NewRotation);
 }
