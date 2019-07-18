@@ -25,6 +25,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UBoxComponent* BoxCollision;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	USceneComponent* MeshOffsetRoot;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 

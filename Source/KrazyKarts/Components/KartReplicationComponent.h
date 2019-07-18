@@ -22,6 +22,20 @@ struct FKartState
 	FTransform Transform;
 };
 
+struct FHermiteCubicSpline
+{
+	FVector StartLocation, StartDerivative, TargetLocation, TargetDerivative;
+
+	FVector InterpolateLocation(float LerpRatio) const
+	{
+		return FMath::CubicInterp(StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
+	}
+	FVector InterpolateDerivative(float LerpRatio) const
+	{
+		return FMath::CubicInterpDerivative(StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
+	}
+};
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class KRAZYKARTS_API UKartReplicationComponent : public UActorComponent
 {
@@ -41,8 +55,21 @@ public:
 
 
 private:
+	
 	class UKartMovementComponent* KartMovementComponent;
+	USceneComponent* MeshOffsetRoot;
+
 	TArray<FKartMove> UnacknowledgedMoves;
+	
+	FTransform StartingTransform;
+	FVector TargetLocation;
+	FVector StartingVelocity;
+	FVector NewVelocity;
+	
+	FQuat TargetRotation;
+	
+	float TimeSinceUpdate;
+	float TimeBetweenUpdates;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
 	FKartState ServerState;
@@ -62,11 +89,16 @@ private:
 
 	void ClientTick(float DeltaTime);
 
-	FTransform StartingTransform;
-	FVector TargetLocation;
-	FVector StartingVelocity;
-	FVector NewVelocity;
-	FQuat TargetRotation;
-	float TimeSinceUpdate;
-	float TimeBetweenUpdates;
+	void InterpolateRotation(float LerpRatio);
+
+	void InterpolateVelocity(FHermiteCubicSpline &Spline, float LerpRatio);
+
+	void InterpolateLocation(FHermiteCubicSpline &Spline, float LerpRatio);
+
+	FORCEINLINE
+	float VelocityToDerivative() { return TimeBetweenUpdates * 100.0f; }
+
+	FHermiteCubicSpline CreateSpline();
+
+	
 };

@@ -18,7 +18,6 @@ UKartReplicationComponent::UKartReplicationComponent()
 	// ...
 }
 
-
 // Called when the game starts
 void UKartReplicationComponent::BeginPlay()
 {
@@ -26,8 +25,8 @@ void UKartReplicationComponent::BeginPlay()
 
 	// ...
 	KartMovementComponent = GetOwner()->FindComponentByClass<UKartMovementComponent>();
+	MeshOffsetRoot = GetOwner()->FindComponentByClass<USceneComponent>();
 }
-
 
 // Called every frame
 void UKartReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -76,13 +75,16 @@ void UKartReplicationComponent::OnRep_ServerState()
 
 void UKartReplicationComponent::SimuluatedProxy_OnRep_ServerState()
 {
+	if (!KartMovementComponent) return;
 	TimeBetweenUpdates = TimeSinceUpdate;
 	TimeSinceUpdate = 0;
-	StartingTransform = GetOwner()->GetActorTransform();
-	if (KartMovementComponent)
-	{
-		StartingVelocity = KartMovementComponent->GetVelocity();
-	}
+	StartingVelocity = KartMovementComponent->GetVelocity();
+
+	if (!MeshOffsetRoot) return;
+	StartingTransform.SetLocation(MeshOffsetRoot->GetComponentLocation());
+	StartingTransform.SetRotation(MeshOffsetRoot->GetComponentQuat());
+	
+	GetOwner()->SetActorTransform(ServerState.Transform);
 }
 
 void UKartReplicationComponent::AutonomousProxy_OnRep_ServerState()
@@ -142,20 +144,48 @@ void UKartReplicationComponent::ClientTick(float DeltaTime)
 	{
 		return;
 	}
-	TargetLocation = ServerState.Transform.GetLocation();
-	TargetRotation = ServerState.Transform.GetRotation();
-	float VelocityToDerivative = TimeBetweenUpdates * 100.0f;
-	FVector StartDerivative = StartingVelocity * VelocityToDerivative;
-	FVector TargetDerivative = ServerState.Velocity * VelocityToDerivative;
+	
+	FHermiteCubicSpline Spline = CreateSpline();
+	
 	float LerpRatio = TimeSinceUpdate / TimeBetweenUpdates;
 	LerpRatio = FMath::Clamp(LerpRatio, 0.0f, 1.0f);
-	FVector NewLocation = FMath::CubicInterp(StartingTransform.GetLocation(), StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
 	
-	FVector NewDerivative = FMath::CubicInterpDerivative(StartingTransform.GetLocation(), StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
-	FVector NewVelocity = NewDerivative / VelocityToDerivative;
-	KartMovementComponent->SetVelocity(NewVelocity);
+	InterpolateLocation(Spline, LerpRatio);
 
+	InterpolateVelocity(Spline, LerpRatio);
+	
+	InterpolateRotation(LerpRatio);
+}
+
+void UKartReplicationComponent::InterpolateRotation(float LerpRatio)
+{
+	if (!MeshOffsetRoot) return;
+	TargetRotation = ServerState.Transform.GetRotation();
 	FQuat NewRotation = FQuat::Slerp(StartingTransform.GetRotation(), TargetRotation, LerpRatio);
-	GetOwner()->SetActorLocation(NewLocation);
-	GetOwner()->SetActorRotation(NewRotation);
+	MeshOffsetRoot->SetWorldRotation(NewRotation);
+}
+
+void UKartReplicationComponent::InterpolateVelocity(FHermiteCubicSpline &Spline, float LerpRatio)
+{
+	FVector NewDerivative = Spline.InterpolateDerivative(LerpRatio);
+	FVector NewVelocity = NewDerivative / VelocityToDerivative();
+	KartMovementComponent->SetVelocity(NewVelocity);
+}
+
+void UKartReplicationComponent::InterpolateLocation(FHermiteCubicSpline &Spline, float LerpRatio)
+{
+	if (!MeshOffsetRoot) return;
+	FVector NewLocation = Spline.InterpolateLocation(LerpRatio);
+	MeshOffsetRoot->SetWorldLocation(NewLocation);
+}
+
+FHermiteCubicSpline UKartReplicationComponent::CreateSpline()
+{
+	FHermiteCubicSpline Spline;
+	Spline.TargetLocation = ServerState.Transform.GetLocation();
+	Spline.StartLocation = StartingTransform.GetLocation();
+	Spline.StartDerivative = StartingVelocity * VelocityToDerivative();
+	Spline.TargetDerivative = ServerState.Velocity * VelocityToDerivative();
+
+	return Spline;
 }

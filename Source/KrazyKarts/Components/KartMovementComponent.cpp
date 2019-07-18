@@ -20,6 +20,7 @@ UKartMovementComponent::UKartMovementComponent()
 void UKartMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	MeshOffsetRoot = GetOwner()->FindComponentByClass<USceneComponent>();
 
 	// ...
 }

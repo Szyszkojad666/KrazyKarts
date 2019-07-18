@@ -74,6 +74,8 @@ private:
 	UPROPERTY(EditAnywhere)
 	float RollingResistanceCoefficient = 0.02;
 
+	USceneComponent* MeshOffsetRoot;
+
 	FKartMove CreateMove(float DeltaTime);
 
 	FKartMove LastMove;
