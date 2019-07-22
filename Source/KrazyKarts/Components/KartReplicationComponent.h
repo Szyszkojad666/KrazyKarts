@@ -70,6 +70,7 @@ private:
 	
 	float TimeSinceUpdate;
 	float TimeBetweenUpdates;
+	float ClientSimulatedTime;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
 	FKartState ServerState;

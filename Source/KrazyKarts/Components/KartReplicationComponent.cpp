@@ -4,6 +4,7 @@
 #include "Runtime/Engine/Classes/GameFramework/Actor.h"
 #include "UnrealNetwork.h"
 #include "KrazyKarts.h"
+#include "Engine/World.h"
 #include "Engine/GameEngine.h"
 
 
@@ -39,7 +40,6 @@ void UKartReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 		if (GetOwner()->Role == ROLE_AutonomousProxy)
 		{
 			UnacknowledgedMoves.Add(MoveToSimulate);
-			Server_SendMove(MoveToSimulate);
 		}
 		if (GetOwner()->GetRemoteRole() == ROLE_SimulatedProxy)
 		{
@@ -107,12 +107,16 @@ void UKartReplicationComponent::Server_SendMove_Implementation(FKartMove InMove)
 	{
 		KartMovementComponent->SimulateMove(InMove);
 		UpdateServerState(InMove);
+		ClientSimulatedTime += InMove.DeltaTime;
 	}
 }
 
 bool  UKartReplicationComponent::Server_SendMove_Validate(FKartMove InMove)
 {
-	return true;
+	float ProposedTime = ClientSimulatedTime + InMove.DeltaTime;
+	bool TimeCheating = ProposedTime > GetWorld()->TimeSeconds;
+	if (TimeCheating) return false;
+	return InMove.IsValid();
 }
 
 void UKartReplicationComponent::ClearAcknowledgedMoves(FKartMove LastMove)
